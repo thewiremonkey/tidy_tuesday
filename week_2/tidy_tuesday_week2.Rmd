@@ -1,0 +1,51 @@
+---
+title: "Tidy Tuesday Week 2"
+output: html_notebook
+editor_options: 
+  chunk_output_type: inline
+---
+
+
+
+```{r}
+library(tidyverse)
+library(readxl)
+library(magick)
+library(gganimate)
+library(ggridges)
+library(magrittr)
+library(ghibli)#devtools::install_github("ewenme/ghibli") palettes based on Studio Ghibli animated films
+
+#get non-boring colors found here: https://github.com/EmilHvitfeldt/r-color-palettes/blob/master/type-sorted-palettes.md#qualitative-color-palettes
+
+#ggridges tutorial https://cran.r-project.org/web/packages/ggridges/vignettes/introduction.html
+
+#ghibli has 9 colors, but if you create a "continuous" palette and provide the number of factors, it will generate that number of discrete colors.
+pal <- ghibli_palette(n = 10, name = "MononokeMedium", type = "continuous") 
+
+#read in the data
+#gather to create a long data frame
+#dump result into ggplot
+
+dat <- read_excel("tidy_tuesday_week2.xlsx") %>% 
+  gather(key=position, value=value, 2:11) %>% #create a long data frame
+  group_by(position, year) %>% 
+  top_n(16, value) %>% #take just the top 16 to match the original dataset
+  #using forcats to reorder the plot so that the position are ordered by median salary
+  ggplot(., aes(x=value, y=fct_reorder(position, value, median), frame = as.character(year), fill=position))+
+    geom_density_ridges(scale = .8, #less than 1 keeps ridges from overlapping
+                        size = 0.25, 
+                        na.rm = TRUE,  
+                        alpha=0.8,
+                        rel_min_height=0.05, #trims the tails
+                        quantile_lines=TRUE,
+                        show.legend = FALSE)+
+  scale_x_log10(breaks=waiver(), labels=waiver())+ #log transform to show greater movement, waiver to format full numbers on x axis
+  scale_fill_manual(values=pal)+
+  labs(x="Salary $USD \n(log scale))", y="position", title="NFL Salary Distribution 2011 - 2018\n\n")+
+  theme_bw()
+
+gganimate(dat, "value_crawl.gif", ani.width=600)
+```
+
+
