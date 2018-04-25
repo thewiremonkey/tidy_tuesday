@@ -1,0 +1,163 @@
+---
+title: "Tidy Tuesday Week 4 - Alyssa Goldberg"
+output: html_notebook
+---
+
+```{r cv}
+library(tidyverse)
+
+raw_dat<-read_csv("week4_australian_salary.csv")
+
+
+pal<-c("DarkMagenta", "OliveDrab")
+```
+```{r find ladyjobs}
+
+#transform data
+#calculate female income 'f_income', male income 'f_income' for each occupation
+#calculate average income for occupation
+#calculate female count of individuals f_count, 
+#calculate male count of individuals m_count
+#calculate total number of individtual workers 'tot_workers'
+#calculate the female income ratio to the average income per occupation
+#calculate the male income ratio to the average income per occupation
+#calculate the ratio of female to male workers for each occupation
+#greater the proportion of women, the closer to 1
+
+dat<-raw_dat %>% group_by(occupation) %>% 
+  summarise(f_income=mean(average_taxable_income[gender=="Female"]),
+            m_income=mean(average_taxable_income[gender=="Male"]),
+            avg_income=mean(average_taxable_income),
+            f_count=mean(individuals[gender=="Female"]),
+            m_count=mean(individuals[gender=="Male"]),
+            tot_workers=sum(individuals)) %>% 
+  mutate(f_ratio_income=f_income/avg_income, 
+         m_ratio_income=m_income/avg_income, 
+         f_ratio_workers=f_count/tot_workers,
+         diff=abs(m_ratio_income-f_ratio_income)) %>% 
+  filter(!is.nan(m_income), !is.nan(f_income))
+
+plot_dat<-select(dat,occupation, f_ratio_workers, f_ratio_income, m_ratio_income) %>% 
+  gather(key=gender, value=income_ratio, 3:4 )
+
+
+p1<-ggplot(plot_dat, aes(x=f_ratio_workers, y=income_ratio, group=gender))+
+  geom_point(aes(color=gender), alpha=0.3)+
+  scale_color_manual(values=pal,
+                      breaks=c("f_ratio_income", "m_ratio_income"),
+                      labels=c("Female", "Male"))+
+  geom_smooth(aes(x=f_ratio_workers, y=income_ratio), method="loess", span=0.1, se=FALSE,color="red", alpha=1.0)+
+  geom_hline(aes(yintercept=1), size=1,color="blue")+
+   labs(x="Ratio of Female Workers in Occupation", y="Ratio of Income vs Average Income\nFor Occupation")+
+  theme_bw()
+
+  
+
+
+  tb<-plot_dat %>% 
+    top_n(50, f_ratio_workers) %>% 
+    bind_rows(plot_dat %>% 
+               top_n(-50, f_ratio_workers)) %>% 
+    mutate(gender=ifelse(gender=="f_ratio_income", "Female", "Male")) %>% 
+    left_join(raw_dat %>% select(occupation, gender, average_taxable_income)) %>% 
+    mutate(gender_work=ifelse(
+      f_ratio_workers > 0.1, "women predominant", "men predominant"
+    ))
+  
+  tbplot<-ggplot(tb)
+  tbplot<-tbplot + geom_boxplot(aes(x=gender_work, y=average_taxable_income,color=gender))
+  
+  ggsave(filename = "revised tt4.png", plot = p1, device = "png",dpi = 300,units = "in", height = 4, width = 6 )
+
+```
+
+
+
+```{r mlpls}
+library(e1071)
+library(caret)
+
+set.seed(042418)
+# seeds <- vector(mode = "list", length = 51)
+# for(i in 1:50) seeds[[i]] <- sample.int(1000, 22)
+
+ml_dat<-dat %>% 
+  gather(key=gender, value=income, 2:3) %>% 
+  mutate(gender=ifelse(gender=="f_income", "female", "male"), income_ratio=income/avg_income) %>% 
+  left_join(dat %>% 
+  gather(key=gender, value=workers,5:6) %>% 
+    mutate(gender=ifelse(gender=="f_count", "female", "male"), worker_ratio=workers/tot_workers)) %>% 
+  select(tot_workers, worker_ratio, avg_income, income_ratio, diff, gender)
+
+
+Train<- createDataPartition(ml_dat$avg_income, p=0.6, list=FALSE)
+training<-ml_dat[Train,]
+test<-ml_dat[-Train,]
+
+ctrl<-trainControl(method="cv",
+                   repeats = 3,
+                   classProbs = TRUE,
+                   summaryFunction = twoClassSummary
+                   )
+
+set.seed(042418)
+mod_fit <- train(gender~. ,  
+                 data=training, 
+                 method="pls",
+                 preProc=c("center", "scale"),
+                 tuneLength=15,
+                 trControl=ctrl,
+                 metric="ROC")
+
+plsClasses<-predict(mod_fit, newdata = test)
+plsProb<-predict(mod_fit, newdata = test, type="prob")
+
+confusionMatrix(data=plsClasses, as.factor(test$gender))
+
+  
+```
+```{r knn}
+
+
+ctrl1<-trainControl(method="repeatedcv",
+                   repeats = 5
+                   )
+
+mod_fit1 <- train(gender~ .,   
+                 data=training, 
+                 method="knn",
+                 tuneLength=15,
+                 trControl=ctrl1)
+
+knnClasses<-predict(mod_fit1, newdata = test)
+knnProb<-predict(mod_fit1, newdata = test,type="prob")
+
+confusionMatrix(data=knnClasses, as.factor(test$gender))
+```
+```{r}
+ctrl2<-trainControl(method="adaptive_cv",
+                   repeats = 5
+                   )
+
+mod_fit2 <- train(gender ~ .,   
+                 data=training, 
+                 method="gbm",
+                 tuneLength=12,
+                 trControl=ctrl2)
+
+plsClasses2<-predict(mod_fit2, newdata = test)
+plsProb2<-predict(mod_fit2, newdata = test, type="prob")
+
+confusionMatrix(data=plsClasses2, as.factor(test$gender))
+```
+
+```{r}
+library(randomForest)
+
+mod_fit3<-randomForest(as.factor(gender) ~ ., data=training, importance = TRUE, allowParallel=TRUE) 
+predict<-predict(mod_fit3, test)
+cmp2<-confusionMatrix(predict, as.factor(test$gender))
+cmp2
+```
+
+
