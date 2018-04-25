@@ -4,15 +4,16 @@ output: html_notebook
 ---
 
 ```{r cv}
+
+```
+```{r tt4}
 library(tidyverse)
 
-raw_dat<-read_csv("week4_australian_salary.csv")
+raw_dat<-read_csv("week4_australian_salary.csv") %>% 
+  filter(occupation !="Cricketer")
 
 
 pal<-c("DarkMagenta", "OliveDrab")
-```
-```{r find ladyjobs}
-
 #transform data
 #calculate female income 'f_income', male income 'f_income' for each occupation
 #calculate average income for occupation
@@ -51,113 +52,124 @@ p1<-ggplot(plot_dat, aes(x=f_ratio_workers, y=income_ratio, group=gender))+
    labs(x="Ratio of Female Workers in Occupation", y="Ratio of Income vs Average Income\nFor Occupation")+
   theme_bw()
 
-  
-
+  rd_plot<-ggplot(raw_dat)+geom_boxplot(aes(x=index, y=average_taxable_income))
 
   tb<-plot_dat %>% 
-    top_n(50, f_ratio_workers) %>% 
-    bind_rows(plot_dat %>% 
-               top_n(-50, f_ratio_workers)) %>% 
+    filter(f_ratio_workers>0.95 |f_ratio_workers>0.45 & f_ratio_workers<0.55| f_ratio_workers < 0.05) %>% 
+    # top_n(50, f_ratio_workers) %>% 
+    # bind_rows(plot_dat %>% 
+    #            top_n(-50, f_ratio_workers)) %>% 
     mutate(gender=ifelse(gender=="f_ratio_income", "Female", "Male")) %>% 
     left_join(raw_dat %>% select(occupation, gender, average_taxable_income)) %>% 
-    mutate(gender_work=ifelse(
-      f_ratio_workers > 0.1, "women predominant", "men predominant"
+    mutate(gender_work=case_when(
+      f_ratio_workers >=0.95 ~ "women\n >= 95% of workforce", 
+      f_ratio_workers <=0.05 ~"men\n >=95% of workforce",
+      TRUE ~ "neutral\nwomen 45-55% of workforce"
     ))
   
-  tbplot<-ggplot(tb)
-  tbplot<-tbplot + geom_boxplot(aes(x=gender_work, y=average_taxable_income,color=gender))
+  tbplot<-ggplot(tb)+
+  geom_boxplot(aes(x=gender_work, y=average_taxable_income,color=gender), outlier.colour = NA)+
+    geom_hline(aes(yintercept=median(raw_dat$average_taxable_income[raw_dat$average_taxable_income<200000])), color="red")+
+         scale_color_manual(values=pal,
+                      breaks=c("Female",  "Male"),
+                      labels=c("Female",  "Male"))+
+    coord_cartesian(ylim=c(0,1.5e+05))+
+    labs(x="", y="Average Taxable Income", title="Comparing Salaries of Work Predominated by Men\nand Work Predominated by Women", subtitle="red line=median for ALL occupations\noutliers removed")+
+    theme_bw()
   
   ggsave(filename = "revised tt4.png", plot = p1, device = "png",dpi = 300,units = "in", height = 4, width = 6 )
+  ggsave(filename = "tt4box.png", plot = tbplot, device = "png",dpi = 300,units = "in", height = 4, width = 6 )
+  ggsave(filename="revised tt4box.png", plot = tbplot, device = "png",dpi = 300,units = "in", height = 4, width = 8 )
 
 ```
 
 
 
-```{r mlpls}
-library(e1071)
-library(caret)
+<!-- ```{r mlpls} -->
+<!-- library(e1071) -->
+<!-- library(caret) -->
 
-set.seed(042418)
-# seeds <- vector(mode = "list", length = 51)
-# for(i in 1:50) seeds[[i]] <- sample.int(1000, 22)
+<!-- set.seed(042418) -->
+<!-- # seeds <- vector(mode = "list", length = 51) -->
+<!-- # for(i in 1:50) seeds[[i]] <- sample.int(1000, 22) -->
 
-ml_dat<-dat %>% 
-  gather(key=gender, value=income, 2:3) %>% 
-  mutate(gender=ifelse(gender=="f_income", "female", "male"), income_ratio=income/avg_income) %>% 
-  left_join(dat %>% 
-  gather(key=gender, value=workers,5:6) %>% 
-    mutate(gender=ifelse(gender=="f_count", "female", "male"), worker_ratio=workers/tot_workers)) %>% 
-  select(tot_workers, worker_ratio, avg_income, income_ratio, diff, gender)
-
-
-Train<- createDataPartition(ml_dat$avg_income, p=0.6, list=FALSE)
-training<-ml_dat[Train,]
-test<-ml_dat[-Train,]
-
-ctrl<-trainControl(method="cv",
-                   repeats = 3,
-                   classProbs = TRUE,
-                   summaryFunction = twoClassSummary
-                   )
-
-set.seed(042418)
-mod_fit <- train(gender~. ,  
-                 data=training, 
-                 method="pls",
-                 preProc=c("center", "scale"),
-                 tuneLength=15,
-                 trControl=ctrl,
-                 metric="ROC")
-
-plsClasses<-predict(mod_fit, newdata = test)
-plsProb<-predict(mod_fit, newdata = test, type="prob")
-
-confusionMatrix(data=plsClasses, as.factor(test$gender))
-
-  
-```
-```{r knn}
+<!-- ml_dat<-dat %>%  -->
+<!--   gather(key=gender, value=income, 2:3) %>%  -->
+<!--   mutate(gender=ifelse(gender=="f_income", "female", "male"), income_ratio=income/avg_income) %>%  -->
+<!--   left_join(dat %>%  -->
+<!--   gather(key=gender, value=workers,5:6) %>%  -->
+<!--     mutate(gender=ifelse(gender=="f_count", "female", "male"), worker_ratio=workers/tot_workers)) %>%  -->
+<!--   select(tot_workers, worker_ratio, avg_income, income_ratio, diff, gender) -->
 
 
-ctrl1<-trainControl(method="repeatedcv",
-                   repeats = 5
-                   )
+<!-- Train<- createDataPartition(ml_dat$avg_income, p=0.6, list=FALSE) -->
+<!-- training<-ml_dat[Train,] -->
+<!-- test<-ml_dat[-Train,] -->
 
-mod_fit1 <- train(gender~ .,   
-                 data=training, 
-                 method="knn",
-                 tuneLength=15,
-                 trControl=ctrl1)
+<!-- ctrl<-trainControl(method="cv", -->
+<!--                    repeats = 3, -->
+<!--                    classProbs = TRUE, -->
+<!--                    summaryFunction = twoClassSummary -->
+<!--                    ) -->
 
-knnClasses<-predict(mod_fit1, newdata = test)
-knnProb<-predict(mod_fit1, newdata = test,type="prob")
+<!-- set.seed(042418) -->
+<!-- mod_fit <- train(gender~. ,   -->
+<!--                  data=training,  -->
+<!--                  method="pls", -->
+<!--                  preProc=c("center", "scale"), -->
+<!--                  tuneLength=15, -->
+<!--                  trControl=ctrl, -->
+<!--                  metric="ROC") -->
 
-confusionMatrix(data=knnClasses, as.factor(test$gender))
-```
-```{r}
-ctrl2<-trainControl(method="adaptive_cv",
-                   repeats = 5
-                   )
+<!-- plsClasses<-predict(mod_fit, newdata = test) -->
+<!-- plsProb<-predict(mod_fit, newdata = test, type="prob") -->
 
-mod_fit2 <- train(gender ~ .,   
-                 data=training, 
-                 method="gbm",
-                 tuneLength=12,
-                 trControl=ctrl2)
+<!-- confusionMatrix(data=plsClasses, as.factor(test$gender)) -->
 
-plsClasses2<-predict(mod_fit2, newdata = test)
-plsProb2<-predict(mod_fit2, newdata = test, type="prob")
 
-confusionMatrix(data=plsClasses2, as.factor(test$gender))
-```
+<!-- ``` -->
+<!-- ```{r knn} -->
 
-```{r}
-library(randomForest)
 
-mod_fit3<-randomForest(as.factor(gender) ~ ., data=training, importance = TRUE, allowParallel=TRUE) 
-predict<-predict(mod_fit3, test)
-cmp2<-confusionMatrix(predict, as.factor(test$gender))
-cmp2
-```
+<!-- ctrl1<-trainControl(method="repeatedcv", -->
+<!--                    repeats = 5 -->
+<!--                    ) -->
+
+<!-- mod_fit1 <- train(gender~ .,    -->
+<!--                  data=training,  -->
+<!--                  method="knn", -->
+<!--                  tuneLength=15, -->
+<!--                  trControl=ctrl1) -->
+
+<!-- knnClasses<-predict(mod_fit1, newdata = test) -->
+<!-- knnProb<-predict(mod_fit1, newdata = test,type="prob") -->
+
+<!-- confusionMatrix(data=knnClasses, as.factor(test$gender)) -->
+<!-- ``` -->
+<!-- ```{r} -->
+<!-- ctrl2<-trainControl(method="adaptive_cv", -->
+<!--                    repeats = 5 -->
+<!--                    ) -->
+
+<!-- mod_fit2 <- train(gender ~ .,    -->
+<!--                  data=training,  -->
+<!--                  method="gbm", -->
+<!--                  tuneLength=12, -->
+<!--                  trControl=ctrl2) -->
+
+<!-- plsClasses2<-predict(mod_fit2, newdata = test) -->
+<!-- plsProb2<-predict(mod_fit2, newdata = test, type="prob") -->
+
+<!-- confusionMatrix(data=plsClasses2, as.factor(test$gender)) -->
+<!-- ``` -->
+
+<!-- ```{r} -->
+<!-- library(randomForest) -->
+
+<!-- mod_fit3<-randomForest(as.factor(gender) ~ ., data=training, importance = TRUE, allowParallel=TRUE)  -->
+<!-- predict<-predict(mod_fit3, test) -->
+<!-- cmp2<-confusionMatrix(predict, as.factor(test$gender)) -->
+<!-- cmp2 -->
+<!-- ``` -->
 
 
