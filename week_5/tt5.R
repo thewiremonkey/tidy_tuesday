@@ -35,10 +35,31 @@ all<-left_join(states, counties, by="state") %>%
   select(-population.x, -population.y)
 
 division<-all %>% group_by(division) %>%
-  summarise(n_counties=n(),dens=mean(pop_dens, na.rm=T))
+  summarise(n_counties=n(),dens=mean(pop_dens, na.rm=T), commute=mean(mean_commute, na.rm=T))
 
-p<-ggplot(region, aes(label=region))+
-  geom_text(aes(x=pop_dens, y=income_per_cap))
+p<-ggplot(division, aes(label=division))+
+  geom_text(aes(x=dens, y=commute))
+
+g<-ggplot(all)
+
+gse<-g+geom_point(aes(x=self_employed, y=mean_commute))
+
+dens<-all %>% filter(pop_dens !=max(pop_dens)) %>%
+  group_by(state) %>%
+  summarise(semp=mean(self_employed, na.rm=T),
+            dens=mean(pop_dens, na.rm=T)) %>%
+  filter(!is.nan(semp))
+
+
+
+sts<-all %>% select(-c(county_name, county_fips, county)) %>% distinct() %>%
+  group_by(state) %>%
+  summarise_if(.predicate = is.numeric, mean, na.rm=T) %>%
+  filter(!is.nan(c_pop)) %>%
+  ungroup() %>%
+  gather(key=variable, value=value, 2:40) %>%
+  filter(!is.na(value))
+
 
 # ##---- old stuff---
 #
