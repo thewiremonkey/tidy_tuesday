@@ -17,18 +17,18 @@ names(raw_data)<-c("id", "have_seen", "fan", unlist(raw_data[1, 4:9]), paste0("r
 #remove the first line that used to held the selection items
 raw_data<-filter(raw_data, !is.na(id))
 
-#pull and make long the responses to which films seen
+#pull to see who is a fan and who isn't
+df_fan<-raw_data %>% select(id, ep,have_seen, fan)
+
 df_which<-raw_data %>% select(id, 4:9 ) %>% 
   gather(key=ep, value=seen, 2:7) %>% 
   mutate(seen=ifelse(seen == "", 0,1)) 
 
-#pull and make long the responses to ranks of films
 df_rank<-raw_data %>% select(id, 10:15) %>% 
   gather(key=ep, value=rank, 2:7) %>% 
   mutate(ep=gsub("rank ", "", ep)) %>% 
   filter(rank !="" )
 
-#pull and make long the responses to characters
 df_chars<-raw_data %>% select(id, 16:29) %>%
   gather(key=character, value=score, 2:15) %>% 
   filter(score !="") %>% 
@@ -41,11 +41,9 @@ df_chars<-raw_data %>% select(id, 16:29) %>%
     TRUE ~0
   ))
 
-#general demographics
 df_demo<-raw_data %>% select(id, 30:38)
 
-#find which movies respondants have seen and how they ranked them
-df_which_rank<-merge(df_which, df_rank) %>% #joins on both the id and the episode name
+df_which_rank<-merge(df_which, df_rank) %>% 
   mutate(id=as.character(id), rank=as.numeric(rank))
 
 
@@ -53,16 +51,24 @@ ggplot(df_which_rank, aes(x=rank, y=ep))+
   ggridges::geom_density_ridges(aes(fill=as.factor(seen)), alpha=0.5)+
   scale_fill_manual(name="seen", values=c("red", "green"),labels=c("no", "yes"))
 
-#find out who has not seen the films, join with the gender variable from the demo
-#data frame to explore whether there are any differences in rankings by the various
-#genders
+count_seen<-df_which_rank %>% 
+  group_by(id) %>% 
+  summarise(seen=sum(seen))
+
+demo_seen<-left_join(count_seen, df_demo %>% mutate(id=as.character(id))) %>% 
+  filter_all(all_vars(. !=""))
+
+mf<-df_demo %>% select(id, gender) %>% 
+  left_join(df_which_rank) %>% 
+  filter(!is.na(ep)) %>% 
+  group_by(ep, gender) %>% summarise(cnt=sum(seen == 1), avg_rank=mean(rank)) %>% 
+  mutate(gender=ifelse(gender=="", "refused", gender))
+
 notseen<-df_which_rank %>% filter(seen==0) %>% 
   left_join(df_demo %>% select(id, gender)) %>% 
   mutate(ep=gsub("Star Wars: ", "", ep),gender=ifelse(gender=="", "Refused", gender)) %>% 
   left_join(df_fan %>% select(id, fan))
 
-#plot the rankings of those who have not seen the films, are not fans
-# but have ranked them anyway
 ggplot(notseen %>% filter(fan=="No"), aes(x=gender, y=rank))+
   geom_jitter(aes(color=gender), alpha=.4,width = .1)+
   scale_color_manual(values=c('Refused'="DarkOliveGreen", "Female"="Purple", "Male"="Goldenrod"))+
@@ -71,19 +77,15 @@ ggplot(notseen %>% filter(fan=="No"), aes(x=gender, y=rank))+
   facet_wrap(~ep)+
   theme_bw()
 
-#find out who has seen the films, join with the gender variable from the demo
-#data frame and explore whether there are any differences in rankings by the 
-#various genders
 seen<-df_which_rank %>% filter(seen==1) %>% 
   left_join(df_demo %>% select(id, gender)) %>% 
   mutate(ep=gsub("Star Wars: ", "", ep),gender=ifelse(gender=="", "Refused", gender)) %>% 
   left_join(df_fan %>% select(id, fan))
 
-#plot the fan rankings
-ggplot(seen %>% filter(fan=="Yes"), aes(x=gender, y=rank))+
-  geom_jitter(aes(color=gender), alpha=.4,width = .1, height=.3)+
+ggplot(notseen %>% filter(fan=="Yes"), aes(x=gender, y=rank))+
+  geom_jitter(aes(color=gender), alpha=.4,width = .1, height=.1)+
   scale_color_manual(values=c('Refused'="DarkOliveGreen", "Female"="Purple", "Male"="Goldenrod"))+
-  labs(title="Fanpinions", subtitle='Those who have seen the films and answered "Yes" to whether they are fans\ntend to agree that both Attack of the Clones and Revenge of the Sith sucked,\nbut with slightly more agreement on Attack of the Clones.')+
+  labs(title="Trollpinions", subtitle='Those who have not seen the films and answered "No" to whether they are fans\nappear to still be able to rank films in  the franchise')+
   coord_flip()+
   facet_wrap(~ep)+
   theme_bw()
