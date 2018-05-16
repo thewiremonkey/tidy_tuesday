@@ -40,5 +40,9 @@ df_chars<-raw_data %>% select(id, 16:29) %>%
 df_demo<-raw_data %>% select(id, 30:38) %>% 
   filter(!is.na(id))
 
-df_which_rank<-merge(df_which, df_rank)
+df_which_rank<-merge(df_which, df_rank) %>% 
+  mutate(id=as.character(id), rank=as.numeric(rank))
 
+
+ggplot(df_which_rank, aes(x=rank, y=ep))+
+  ggridges::geom_density_ridges(aes(fill=as.factor(seen)), alpha=0.5)
