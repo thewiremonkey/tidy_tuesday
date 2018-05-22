@@ -66,7 +66,7 @@ notseen<-df_which_rank %>% filter(seen==0) %>%
 ggplot(notseen %>% filter(fan=="No"), aes(x=gender, y=rank))+
   geom_jitter(aes(color=gender), alpha=.4,width = .1)+
   scale_color_manual(values=c('Refused'="DarkOliveGreen", "Female"="Purple", "Male"="Goldenrod"))+
-  labs(title="Trollpinions", subtitle='Those who have not seen the films and answered "No" to whether they are fans\nappear to not understand the naming/numbering convention for the franchise')+
+  labs(title="Trollpinions", subtitle='Those who have not seen the films and answered "No" to whether they are fans\nappear to have thoughts re: ranking')+
   coord_flip()+
   facet_wrap(~ep)+
   theme_bw()
@@ -86,4 +86,28 @@ ggplot(seen %>% filter(fan=="Yes"), aes(x=gender, y=rank))+
   labs(title="Fanpinions", subtitle='Those who have seen the films and answered "Yes" to whether they are fans\ntend to agree that both Attack of the Clones and Revenge of the Sith sucked,\nbut with slightly more agreement on Attack of the Clones.')+
   coord_flip()+
   facet_wrap(~ep)+
+  theme_bw()
+
+#explore rankings of films by age demo
+age_pref<-df_which_rank %>% 
+  left_join(df_demo %>% select(id, age)) %>% 
+  filter(age !="")%>% group_by(age, ep) %>% 
+  summarise(rank=mean(rank)) %>% 
+  arrange(age, rank)
+
+
+age_chars<-df_chars %>% 
+  left_join(df_demo %>% select(id, age)) %>% 
+  group_by(age, character) %>% 
+  summarise(score=mean(score)) %>% 
+  filter(age !="") %>% 
+  ungroup() %>% 
+  mutate(age=factor(x = age,levels = c("18-29","30-44","45-60","> 60")))
+
+
+
+ggplot(age_chars, aes(x=fct_reorder(character, score, fun=mean, .desc=F), y=score)) +
+  geom_col(stat="identity", position="dodge")+
+  coord_flip()+
+  facet_wrap(~age, scales="free_y")+
   theme_bw()
