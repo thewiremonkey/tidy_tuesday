@@ -81,4 +81,6 @@ top_quant_pair<-pair %>% filter(count>top_1_percent) %>%
   left_join(df %>% select(StartHub, EndHub,StartLongitude, StartLatitude, EndLongitude, EndLatitude, Pair) %>% distinct(), by="Pair")
 
 ggmap::ggmap(portland)+
-  geom_segment(data=top_quant_pair, aes(x=StartLongitude, xend=EndLongitude, y=StartLatitude, yend=EndLatitude), arrow = arrow(ends = "last",length = unit(0.2, "cm")),color="DarkGreen")
+  geom_segment(data=top_quant_pair, aes(x=StartLongitude, xend=EndLongitude, y=StartLatitude, yend=EndLatitude, color=PaymentPlan), arrow = arrow(ends = "last",length = unit(0.2, "cm")), show.legend = TRUE)+
+  scale_y_continuous(limits=c(45.5, 45.565))+
+  scale_x_continuous(limits=c(-122.7, -122.60))
