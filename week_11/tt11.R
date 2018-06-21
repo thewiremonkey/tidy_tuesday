@@ -94,6 +94,8 @@ ggplot(sum_tz_df, aes(x=offset, y=share))+
   annotate(geom = "text", x = 7, y = 10, label = "Johannesburg", color = "red",
            angle = 90, vjust=0)+
   ggtitle(label = "Cumulative Audience Share by Timezone", subtitle="blue dot = sum of audience share")+
-  labs(x="UTC Offset", y="Audience Share", caption="data source: fivethirtyeight.com\nviz: Alyssa Goldberg @WireMonkey 2018\n#TidyTuesday")+
+  labs(x="UTC Offset", y="Audience Share", caption="data source: fivethirtyeight.com\nviz: Alyssa Goldberg @WireMonkey 2018\n#TidyTuesday @thomas_mock")+
   theme_bw()+
   theme(axis.text.x = element_text(angle=90))
+
+

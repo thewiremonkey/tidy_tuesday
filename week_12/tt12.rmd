@@ -1,0 +1,117 @@
+---
+title: "week 12"
+author: "Alyssa Goldberg"
+date: "June 19, 2018"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE, warning = FALSE, message = FALSE)
+```
+
+```{r}
+library(tidyverse)
+library(fivethirtyeight)
+library(r2d3)
+```
+
+```{r Get_Data}
+gt<-google_trends
+mchur<-mediacloud_hurricanes
+mcstates<-mediacloud_states
+mct<-mediacloud_trump
+mco<-mediacloud_online_news
+tvhur<-tv_hurricanes
+tvnet<-tv_hurricanes_by_network
+tvstates<-tv_states
+
+#create tibble of storms for landmarking. Date is first landfall, category is category at landfall
+storms<-tibble(date=c("2017-08-26", "2017-09-6","2017-09-10", "2017-09-09", "2017-09-20"), storm=c("harvey", "irma","irma", "jose", "maria"), category=c(4,5,5,5,5))
+```
+The 2017 Atlantic hurricane season was both active and severe.  Three storms struck US territory in quick succession: 
+
+* Harvey  
+* Irma  
+* Jose  
+* Maria  
+
+Fivethirtyeight.com examined how these storms were covered by broadcast/cable news sources and how they trended on Google from the period: `r range(c(gt$date, mchur$date, mcstates$date, mct$date, tvhur$date, tvnet$date, tvstates$date))[1]` to `r range(c(gt$date, mchur$date, mcstates$date, mct$date, tvhur$date, tvnet$date, tvstates$date))[2]`
+
+#Get Data  
+Data comes from [fivethirtyeight.com's github](https://github.com/rudeboybert/fivethirtyeight)
+
+
+# Explore Data
+When did each of the storms first get mentioned in the media
+```{r echo=TRUE}
+#enlongen the tables for tidying and ggplot
+tvhur<-tvhur %>% gather(key=storm, value=value, 2:5) 
+mchur<-mchur %>% gather(key=storm, value=value, 2:5)
+
+tvrange<-tvhur %>% 
+  filter(value!=0) %>% 
+  group_by(storm) %>% 
+  filter(date==min(date)|date==max(date))
+
+mcrange<-mchur %>% 
+  filter(value!=0) %>% 
+  group_by(storm) %>% 
+  filter(date==min(date)|date==max(date))
+
+
+```
+
+```{r}
+p<-ggplot(tvhur, aes(x=date, y=value, color=storm))
+vline<-storms$date
+
+p+geom_line()+
+  geom_point(data=storms, aes(x=as.Date(date), y=1, color=storm))+
+  geom_segment(data=storms, aes(x=as.Date(date), xend=as.Date(date), y=0, yend=1, color=storm), linetype="dashed")+
+  theme_bw()
+
+p1<-ggplot(mchur, aes(x=date, y=value, color=storm))
+
+p1+geom_line()+
+  geom_point(data=storms, aes(x=as.Date(date), y=max(mchur$value), color=storm))+
+  geom_segment(data=storms, aes(x=as.Date(date), xend=as.Date(date), y=0, yend=max(mchur$value), color=storm), linetype="dashed")
+
+```
+```{r}
+library(tidyverse)
+library(fivethirtyeight)
+
+#create tibble of storms for landmarking. Date is first landfall, category is category at landfall
+#data from Google Search on each.  Irma has two dates, first landfall in Carribean and first landfall in Continental US.
+storms<-tibble(date=c("2017-08-26", "2017-09-6","2017-09-10", "2017-09-09", "2017-09-20"), storm=c("harvey", "irma","irma", "jose", "maria"), category=c(4,5,5,5,5))
+
+
+
+df=tv_hurricanes_by_network
+df$query=as.character(df$query)
+
+df<-df %>% gather(key=network, value=value, 3:6) %>% 
+  group_by(date, network, query) %>% 
+  summarise(value=mean(value, na.rm=TRUE)) %>% 
+  ungroup() %>% 
+    rename(storm=query) %>% 
+  mutate(storm=tolower(gsub("Hurricane ", "", storm))) %>% 
+  filter(value!=0) %>% 
+  arrange(date)
+
+range=range(df$value)
+
+ p<-ggplot()+
+   labs(title="Coverage by Network, Date and Storm",subtitle="The percent of sentences on a TV news channel on the\n given date that mention the hurricane in question\nblack dot = landfall date", x="", y=paste0("from ", range[1], "% to ", range[2],"%"), caption="data: fivethirtyeight\nviz: Alyssa Goldberg @WireMonkey\npart of the #TidyTuesday project by @thomas_mock")+
+    geom_point(data=fortify(storms), aes(x=as.Date(date), y=1))+
+    geom_line(data=df, aes(x=date, y=value, color=network))+
+    coord_polar(theta="x", clip="off")+
+    theme_bw()+
+    facet_wrap(~storm)
+ 
+ png(filename = "tt12.png",type = "cairo", units="in", res=100, width = 5,height = 5)
+ p
+dev.off()
+
+```
+
