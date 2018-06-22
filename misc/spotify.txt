@@ -1,8 +1,0 @@
-Sys.setenv(SPOTIFY_CLIENT_ID = 'e4ec23b2bada4263b05944323785c8ca')
-Sys.setenv(SPOTIFY_CLIENT_SECRET = '4dbb404760984bf2b98ff3c2ae1e6328')
-
-curl -X "POST" "https://api.spotify.com/v1/users/thewiremonkey/playlists" --data "{\"name\":\"D_Sharp\",\"description\":\"Songs in the Key of D#\",\"public\":true}" -H "Accept: application/json" -H "Content-Type: application/json" -H "Authorization: Bearer BQCHIdswyjtaCZShrnI8L0BOoXrUZSuU_k6s4kYRRj9ab_EseW8s0jXFBzfmkNXigr7MvjCO8mCk_FRycvPAyo_cNvh33Iv0fDw769sBcM70QnobazJqByIshWwcKuZnMZSgclmX4RpMMajT9zWJi3mLFzMhkhGQKzrzwsTYUfxIexx9IUu04oUuPlLYGfYG6Y5bCr-ovzPR_MNB"
-
-https://open.spotify.com/user/thewiremonkey/playlist/1dnKAbnO19jqPpe27mu5fP
-
-curl -X "POST" "https://api.spotify.com/v1/users/thewiremonkey/playlists" --data "{\"name\":\"Key_of_A\",\"description\":\"top 100 songs in the key of A\",\"public\":true}" -H "Accept: application/json" -H "Content-Type: application/json" -H "Authorization: Bearer BQBaq78ypFd5q3aGickO4B10Qaes4lNBahrCDLktq1xNIU-uG53xmkefoIpz6_KjJCe6F_huGr9qCLKCh7dTZmOUkzRxBouAtt3K_zFVfxbiMd5j1OIjfPb-kT06nRFggz7EUDdUO3LIvFdl7x8zsRRqOw8pkkJGAmTzlDB5uY-W-BhBJ8-Q6CfAs3yyYr-ViuWBvz18aoSdVSOz"
