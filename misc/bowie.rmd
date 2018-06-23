@@ -1,0 +1,110 @@
+---
+title: "Bowie on Spotify"
+author: "Alyssa Goldberg"
+date: "June 21, 2018"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE)
+
+if(!grepl("misc", getwd())){
+setwd("./misc")
+}
+```
+# Artificial Intelligence on Real Genius
+## Analyzing Bowie with the spotifyr package
+
+[spotifyr](http://www.rcharlie.com/spotifyr/) facilitates pulling album and track data based on search criteria.  [Charlie Thompson @_RCharlie]("http://www.twitter.com/@_RCharlie") has a great tutorial, which I used to create this analysis.
+
+## Load Packages
+We'll be using the tidyverse, of course, spotifyr, rpart, dendextend and circlize. Swiped code appears in the comments
+
+```{r packages, echo=TRUE, warning=FALSE, message=FALSE}
+library(spotifyr)#http://www.rcharlie.com/spotifyr/
+library(tidyverse)
+library(rpart)
+library(dendextend)
+library(circlize) #https://stats.stackexchange.com/questions/4062/how-to-plot-a-fan-polar-dendrogram-in-r
+library(plotly)
+
+if(!grepl("misc", getwd())){setwd("./misc")}
+```
+
+## Get Data
+There is more than one David Bowie (no, no there isn't) so we need to indicate which one we want.
+
+I'm going to save that as RDS so that I don't have to manually intervene each time I run this script
+
+```{r get_bowie, echo=FALSE}
+
+bowie<-if(!file.exists("bowie.rds")){
+bowie<- spotifyr::get_artist_audio_features('David Bowie')
+saveRDS(bowie, "bowie.rds")}else{
+  readRDS("bowie.rds")
+}
+```
+
+The first exploration I'm going to do is for the overall sentiment of each track in the database.  I'm going to emulate Charlie Thompson's really cool [sentify app]("http://rcharlie.net/sentify/") which looks at valence - a measure of a track's "positivity", and its energy.  This produces 4 quadrants from Sad/Depressing (low energy, low valence) to Happy/Joyful (high energy, high valence). I'm producing these with plotly so you can hover for details
+
+```{r sentiment, echo=TRUE}
+
+
+p<-ggplot(bowie) +
+  geom_point(aes(x=valence, y=energy, color=track_name),show.legend = FALSE)+
+  geom_hline(aes(yintercept=0.5))+
+  geom_vline(aes(xintercept=0.5))+
+  annotate("text", x=1, y=1, label="Happy/Joyful", hjust=1)+
+  annotate("text", x=1, y=0, label="Chill/Relaxing", hjust=1)+
+  annotate("text", x=0, y=0, label="Sad/Depressing", hjust=-1)+
+  annotate("text", x=0, y=1, label="Turbulent/Dark", hjust=-1)+
+  theme_bw()
+
+ggplotly(p) %>% 
+  layout(showlegend = FALSE)
+```
+
+Next up is a corrplot, to see how the variables in Spotify's metrics correlate to each other. Acousticness is negatively correlated with energy and loudness, and energy and loudness are strongly correlated.
+
+```{r}
+bowiecor<-bowie %>% select_if(is.numeric) %>% 
+  mutate_if(is.character, as.factor)
+
+corrplot::corrplot(cor(bowiecor),type = "upper", order="hclust",diag = FALSE)
+```
+
+Some hierachical clustering
+```{r}
+bowie<-bowie %>% select_if(is.numeric) %>%
+  bind_cols(bowie %>% select(album_name)) %>%
+  mutate(album_name=gsub( " *\\(.*?\\) *| *\\[.*?\\] *", "", album_name),
+         album_name=ifelse(grepl("Peter", album_name, ignore.case=TRUE), "Peter And The Wolf", album_name),
+         album_name=ifelse(grepl("Ziggy",album_name), "...Ziggy Stardust...", album_name) )%>%
+  group_by(album_name) %>%
+  summarise_if(is.numeric, mean, na.rm=TRUE) %>%
+  # top_n(20, album_popularity) %>%
+  ungroup() %>%
+  select(-album_popularity) %>%
+  column_to_rownames("album_name") %>%
+  as.data.frame()
+
+
+
+top_dend<-as.dendrogram(hclust(dist(bowie))) %>%
+  color_branches(k=8) %>%
+  color_labels(k=8)
+
+par(mar=c(0,5,0,5))
+png(filename = "bowie dendro.png", type="cairo", units = "in", width = 5, height=5, res=300)
+circlize_dendrogram(top_dend,labels_track_height = 0.3,dend_track_height = .3)
+dev.off()
+```
+```{r}
+bowietree<-rpart(bowie)
+plot(bowietree)
+text(bowietree)
+
+ggplot(top_dend)+
+  theme()
+```
+
