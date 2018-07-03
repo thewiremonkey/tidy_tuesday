@@ -5,8 +5,8 @@ library(dendextend) #for colors and whatnot
 library(circlize) #https://stats.stackexchange.com/questions/4062/how-to-plot-a-fan-polar-dendrogram-in-r
 
 #follow http://www.rcharlie.com/spotifyr/ instructions for setting up a spotify account to get access to api.
-Sys.setenv(SPOTIFY_CLIENT_ID = 'e4ec23b2bada4263b05944323785c8ca')
-Sys.setenv(SPOTIFY_CLIENT_SECRET = '4dbb404760984bf2b98ff3c2ae1e6328')
+Sys.setenv(SPOTIFY_CLIENT_ID = 'xxxx')
+Sys.setenv(SPOTIFY_CLIENT_SECRET = 'xxxx')
 
 bowie<-if(!file.exists("bowie.rds")){
   bowie<- spotifyr::get_artist_audio_features('David Bowie')

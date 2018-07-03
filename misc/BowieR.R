@@ -2,8 +2,8 @@ library(spotifyr)
 library(geniusr)
 library(tidyverse)
 
-Sys.setenv(SPOTIFY_CLIENT_ID = 'e4ec23b2bada4263b05944323785c8ca')
-Sys.setenv(SPOTIFY_CLIENT_SECRET = '4dbb404760984bf2b98ff3c2ae1e6328')
+Sys.setenv(SPOTIFY_CLIENT_ID = 'xxxxxx')
+Sys.setenv(SPOTIFY_CLIENT_SECRET = 'xxxxx')
 
 bowie<- get_artist_audio_features('David Bowie')
 
