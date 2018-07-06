@@ -39,7 +39,7 @@ df<-merge(c,f) %>%
   ungroup()
 
 ggplot(subset(df, semi_decade>=1995 & semi_decade<=2010), aes(x=contraceptive, y=life))+
-  geom_point(show.legend = F)+
+  geom_point(aes(color=continent),show.legend = F)+
   geom_smooth(aes(color=continent),method='lm', se=FALSE)+
   labs(x="contraceptive prevalance, percent",
        y="female life expectancy, years",
