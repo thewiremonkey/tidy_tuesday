@@ -49,6 +49,7 @@ maxlen <- 50  # Length of extracted character sequences
 #
 step <- 3  # We sample a new sequence every `step` characters
 #
+<<<<<<< HEAD
 # text_indexes <- seq(from = 1, to = nchar(text) - maxlen, by = step)
 
 text_beer$text_indexes<-lapply(X = text_beer$beer_text, function(x)seq(from=1, to=nchar(x)-maxlen, by=step))
@@ -59,6 +60,16 @@ text_beer$sentences<-lapply(X=text_beer$beer_text, function(x)str_sub(x, text_in
 # This holds the targets (the follow-up characters)
 next_chars <- str_sub(text, text_indexes + maxlen, text_indexes + maxlen)
 text_beer$next_chars<-lapply(text_beer$beer_text, function(x)str_sub(x, text_indexes + maxlen, text_indexes + maxlen))
+=======
+text_indexes <- seq(from = 1, to = nchar(text) - maxlen, by = step)
+
+
+# This holds our extracted sequences
+sentences <- str_sub(text, text_indexes, text_indexes + maxlen - 1)
+
+# This holds the targets (the follow-up characters)
+next_chars <- str_sub(text, text_indexes + maxlen, text_indexes + maxlen)
+>>>>>>> 82c0c54b8b82ee813ddd061af94db5276f464b00
 
 cat("Number of sequences: ", length(sentences), "\n")
 
