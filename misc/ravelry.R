@@ -1,9 +1,10 @@
 library(httr)
 library(XML)
 library(jsonlite)
+library(paletteer)
 
 if(!grepl("/misc", getwd())){setwd("./misc")}
-# user_rav.txt contains API username and password 
+# user_rav.txt contains API username and password
 credentials <- readLines("user_rav.txt")
 names(credentials) <- c("user","access_key","secret_key")
 
@@ -14,11 +15,11 @@ OpenConnection <- function(credentials){
   reqURL <- "https://www.ravelry.com/oauth/request_token"
   accessURL <- "https://www.ravelry.com/oauth/access_token"
   authURL <- "https://www.ravelry.com/oauth/authorize"
-  
-  ravelry.app <- oauth_app("ravelry", key=credentials["access_key"], 
+
+  ravelry.app <- oauth_app("ravelry", key=credentials["access_key"],
                            secret=credentials["secret_key"])
   ravelry.urls <- oauth_endpoint(reqURL, authURL, accessURL)
-  
+
   return(oauth1.0_token(ravelry.urls, ravelry.app))
 }
 
@@ -26,8 +27,8 @@ OpenConnection <- function(credentials){
 TestConnection <- function(ravelry.token) {
   # Arg: API token
   # Returns name of the user connected with this token
-  test <- GET("https://api.ravelry.com/current_user.json", 
-              config=config("token"=ravelry.token)) 
+  test <- GET("https://api.ravelry.com/current_user.json",
+              config=config("token"=ravelry.token))
   print(content(test)$user$username)
 }
 
@@ -41,43 +42,110 @@ pat <- content(pat0)
 
 
 color_fam<-GET("https://api.ravelry.com/color_families.json", config=config("token"=ravelry.token))
-color_fam<-content(color_fam)
+color_fam<-content(color_fam, as="text", encoding="UTF-8") %>%
+  fromJSON(flatten=TRUE)
+color_fame<-color_fam$color_families
+
 # colors<-sapply(color_fam$color_families, function(x) x$permalink)
 colors<-unlist(map(color_fam$color_families, `[[`,2))
 
-yarns0<-GET("https://api.ravelry.com/yarns/search.json?fiber-content=wool&page_size=20", config=config("token"=ravelry.token))
-yarns_content<-content(yarns0)
-# yarns_id<-sapply(yarns_content$yarns, function(x) x$id)
-# yarns_links<-GET(paste0("https://api.ravelry.com/yarns.json", paste0(yarns_id, collapse="+")))
-# yarns_links_content<-content(yarns_links)
-yarns<-yarns_content$yarns
+#use the number of  ratings
+#get top rated wool
+wool_raw<-GET("https://api.ravelry.com/yarns/search.json?fiber-content=wool&fiberc=1&ratings=5&sort=rating&photo=yes&discontinued=no&page_size=2000", config=config("token"=ravelry.token))
+
+wool<-content(wool_raw, as="text", encoding="UTF-8") %>%
+  fromJSON(flatten=TRUE)
+wool<-wool$yarns
+
+more<-GET("https://api.ravelry.com/yarns/search.json?page=1&fiber-content=wool&fiberc=1&ratings=3&sort=rating&photo=yes&discontinued=no&page_size=2000", config=config("token"=ravelry.token))
+more<-content(more, as="text", encoding="UTF-8") %>%
+  fromJSON(flatten=TRUE)
+more<-more$yarns
+
+more_wool<-rbind(more_wool,  more) %>% distinct() %>%
+  mutate(fiber="wool")
+
+cotton_raw<-GET("https://api.ravelry.com/yarns/search.json?fiber-content=cotton&fiberc=1&ratings=3&sort=rating&photo=yes&discontinued=no&page_size=2000", config=config("token"=ravelry.token))
+cotton<-content(cotton_raw, as="text", encoding="UTF-8") %>%
+  fromJSON(flatten=TRUE)
+cotton<-cotton$yarns
+all_cotton<-rbind(cotton, all_cotton) %>% distinct() %>%
+  mutate(fiber="cotton")
+
+acrylic_raw<-GET("https://api.ravelry.com/yarns/search.json?page=2&fiber-content=acrylic&fiberc=1&ratings=4&sort=rating&photo=yes&discontinued=no&page_size=2000", config=config("token"=ravelry.token))
+acrylic<-content(acrylic_raw, as="text", encoding="UTF-8") %>%
+  fromJSON(flatten=TRUE)
+acrylic<-acrylic$yarns
+
+all_acrylic<-rbind(acrylic, all_acrylic) %>% distinct() %>%
+  mutate(fiber="acrylic")
 
 
+silk_raw<-(GET("https://api.ravelry.com/yarns/search.json?fiber-content=silk&fiberc=1&photo=yes&discontinued=no&page_size=2000", config=config("token"=ravelry.token)))
+silk<-content(silk_raw, as="text", encoding="UTF-8") %>%
+  fromJSON(flatten=TRUE)
+silk<-silk$yarns
+silk<-silk %>% filter(!is.na(yarn_weight.name), !is.na(grams), !is.na(yardage)) %>%
+  mutate(fiber="silk")
+
+projects<-GET("https://api.ravelry.com/projects/search.json?query=dalek", config=config("token"=ravelry.token))
+prj<-content(projects, as="text", encoding="UTF-8") %>% fromJSON(flatten=TRUE)
+prj<-prj$projects
 
 
-yarns_ratings<-sapply(yarns_content$yarns, function(x) x$rating_average)
+p_df<-more_wool %>% filter(!is.na(yarn_weight.wpi), !is.na(grams), !is.na(yardage), yardage<5000, grams<600)
 
-permalinks <- sapply(pat$patterns, function(x) x$permalink)
-permalinks_full <- sapply(permalinks, function(name) paste("http://www.ravelry.com/patterns/library/",name,sep="",collapse=""))
-names(permalinks_full) <- permalinks
+ggplot(p_df, aes(x=grams, y=yardage, color=yarn_weight.name,group=yarn_weight.name))+
+  geom_point()+
+  geom_smooth(method = "lm")+
+  theme_bw()
 
-# Get top level pattern category and description text using web scraping 
-pattern_info <- lapply(permalinks_full, htmlTreeParse, useInternalNodes = TRUE)
+p_cotton_df<-all_cotton %>% filter(!is.na(yarn_weight.wpi), !is.na(grams), !is.na(yardage), yardage<5000, grams<600)
+ggplot(p_cotton_df, aes(x=grams, y=yardage, color=yarn_weight.name, group=yarn_weight.name))+
+  geom_point()+
+  geom_smooth(method="lm")+
+  theme_bw()
 
-pattern_description_par <- lapply(pattern_info, getNodeSet, path="//p", fun=xmlValue)
-pattern_description <- sapply(pattern_description_par, paste, collapse=" ")
+all_yarn<-bind_rows(more_wool, all_cotton, all_acrylic, silk) %>%
+  distinct()
 
-pattern_cat <- lapply(pattern_info, getNodeSet, path="//div[@class='category']/a/span/text()", fun=xmlValue)
-pattern_topcat <- simplify2array(sapply(pattern_cat, head, 1))
+all_yarn_fit<-all_yarn %>%
+  filter(!is.na(grams), !is.na(yardage)) %>%
+  group_by(fiber, yarn_weight.name) %>%
+  nest() %>%
+  mutate(mod=map(.$data, ~lm(.x$grams~.x$yardage)),
+         slope=map_dbl(mod, ~pluck(coef(.x),".x$yardage"))) %>%
+  arrange(desc(slope))
 
-## Data: 3 columns with pattern permalink, text description, and toplevel category
-data <- as.data.frame(cbind(permalinks, pattern_topcat, pattern_description),stringsAsFactors=F,row.names=F)
-names(data) <- c("permalink", "category", "description")
-data$category <- as.factor(data$category)
+all_yarn_levels<-all_yarn_fit %>%
+  select(yarn_weight.name, slope) %>%
+  group_by(yarn_weight.name) %>%
+  summarise(slope=mean(slope)) %>%
+  arrange(slope)
 
-cat_freq <- table(data$category)
-nbr_examples <- dim(data)[1]
+reorder(all_yarn_levels$yarn_weight.name, all_yarn_levels$slope)
 
-# Remove from data the categories with too few examples 
-data <- subset(data, subset=(cat_freq[category] > 2))
-data$category <- factor(data$category)
+
+p_all_df<-all_yarn %>% filter(!is.na(yarn_weight.name),!is.na(grams), !is.na(yardage), yardage<5000, grams>0,grams<=600, yarn_weight.name !="Aran / Worsted") %>%
+  mutate(yarn_weight.name=factor(yarn_weight.name, reorder(all_yarn_levels$yarn_weight.name, all_yarn_levels$slope)))
+
+f_plot<-ggplot(p_all_df, aes(x=grams, y=yardage, color=fiber, group=fiber))+
+  geom_point(alpha=0.3)+
+  geom_smooth(method="glm", se=FALSE)+
+  theme_bw()+
+  # theme(panel.background = element_rect(fill = "#FBEEE6"), strip.background = element_rect(fill="white"))+
+  scale_color_manual(values=c("#41668e", "#229954", "#F1C40F","#A93226"))+
+  facet_wrap(~yarn_weight.name)+
+  ggtitle("Yardage by Fiber and Weight")+
+  labs(caption="data: Ravelry.com API\nViz: Alyssa Goldberg @WireMonkey")
+
+ggsave(f_plot,device = "png",filename = "yarnplot.png",path = getwd())
+
+ggplot(p_all_df, aes(x=grams, y=yarn_weight.wpi, color=fiber, group=fiber))+
+  geom_point(alpha=0.3)+
+  geom_smooth(method="glm", se=FALSE)+
+  theme_bw()+
+  theme(panel.background = element_rect(fill = "#FBEEE6"), strip.background = element_rect(fill="white"))+
+  scale_color_manual(values=c("#41668e", "#229954", "#f8621b"))+
+  facet_wrap(~yarn_weight.name)+
+  ggtitle("Yardage by Fiber and Weight")
